@@ -1,3 +1,6 @@
+# HETC JAVI MONITOR - VISUALIZER TOOL
+# Run this on your PC to see Javi's thoughts in real-time.
+
 import serial
 import serial.tools.list_ports # Necesario para buscar puertos
 import time
@@ -9,11 +12,10 @@ import math
 BAUD_RATE = 115200
 
 def encontrar_puerto_javi():
-    """Busca automáticamente un dispositivo conectado."""
+    """Busca automáticamente un dispositivo conectado (Arduino/ESP32)."""
     ports = list(serial.tools.list_ports.comports())
     for p in ports:
-        # Aquí podrías filtrar por el nombre si lo sabes, ej: "CH340" o "Arduino"
-        # Por ahora, devolvemos el primero que encontremos activo
+        # Filtro básico: Si dice USB o COM, asumimos que es Javi
         if "USB" in p.description or "COM" in p.device:
             return p.device
     return None
@@ -45,31 +47,36 @@ print("-" * 60)
 try:
     while True:
         if not modo_simulacion:
-            # LECTURA REAL (Si el hardware envía datos como "0.123,872mW")
+            # LECTURA REAL 
+            # (Intentamos leer datos del puerto serial)
             if ser.in_waiting > 0:
                 line = ser.readline().decode('utf-8', errors='ignore').strip()
-                # Aquí asumiríamos que el Arduino manda algo simple, si no, usamos random
                 try:
-                    vibration = float(line.split(',')[0]) # Ejemplo de parseo
+                    # Asumimos que llega un número float
+                    vibration = float(line.split(',')[0]) 
                 except:
                     vibration = random.random()
+            else:
+                # Si no hay datos nuevos, mantenemos un valor aleatorio suave
+                vibration = random.random()
         else:
-            # SIMULACIÓN (Tu algoritmo original)
+            # SIMULACIÓN (Si no hay hardware conectado)
             vibration = random.random()
 
-        # Tu lógica de "Cerebro Riemann"
+        # Lógica de "Cerebro Riemann" (U-1)
         # Usamos 0.5 como base (Línea Crítica) + perturbación
         thought = math.tanh(0.5 + vibration * 0.14) 
-        energy = "872mW" # Esto vendría del sensor de corriente en el futuro
+        energy = "872mW" 
 
-        # Visualización Barra
-        bar_len = int((thought) * 20) 
-        # Aseguramos que no se salga de rango visual
+        # Visualización de la Barra
+        bar_len = int(thought * 20) 
+        # Aseguramos que no se salga de rango visual (0 a 20 caracteres)
         bar_len = max(0, min(20, bar_len))
         
+        # Estilo gráfico
         visual_bar = "▓" * bar_len + "░" * (20 - bar_len)
         
-        # Formato de salida limpio
+        # Salida limpia en una sola línea
         print(f"{vibration:.4f}          | {visual_bar} {thought:.4f} | {energy}")
         time.sleep(0.1)
 
@@ -78,3 +85,5 @@ except KeyboardInterrupt:
         ser.close()
     print("\n[SISTEMA] Desconectado. Monitor HETC cerrado.")
     sys.exit()
+except Exception as e:
+    print(f"\n[CRITICAL ERROR]: {e}")
