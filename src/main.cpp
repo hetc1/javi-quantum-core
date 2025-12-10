@@ -5,7 +5,7 @@
 * Author/Autor: Ernesto Javier Figueroa (CEO HETC)
 * Date/Fecha:   2025-11-07
 * Hardware:     HGN_MB_v1.0 (Powered by Quantum Vacuum @ 872 mW)
-* License:      MIT License (HETC Corp 2025)
+* License:       License (HETC Corp 2025)
 ****************************************************************************************/
 
 #include <Arduino.h>
