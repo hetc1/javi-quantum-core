@@ -1,45 +1,80 @@
-# HETC JAVI MONITOR - VISUALIZER TOOL
-# Run this on your PC to see Javi's thoughts in real-time.
-
 import serial
+import serial.tools.list_ports # Necesario para buscar puertos
 import time
 import sys
+import random
+import math
 
-# Configuración / Settings
-SERIAL_PORT = 'COM3'  # Cambia esto por tu puerto real (o /dev/ttyUSB0 en Linux)
+# --- CONFIGURACIÓN HETC ---
 BAUD_RATE = 115200
 
-print("--- HETC JAVI (U-1) MONITOR ---")
-print("Connecting to Quantum Core...")
+def encontrar_puerto_javi():
+    """Busca automáticamente un dispositivo conectado."""
+    ports = list(serial.tools.list_ports.comports())
+    for p in ports:
+        # Aquí podrías filtrar por el nombre si lo sabes, ej: "CH340" o "Arduino"
+        # Por ahora, devolvemos el primero que encontremos activo
+        if "USB" in p.description or "COM" in p.device:
+            return p.device
+    return None
+
+print("\n--- HETC JAVI (U-1) MONITOR SYSTEM ---")
+print("Inicializando protocolos cuánticos...")
+
+# Intentar conexión real
+target_port = encontrar_puerto_javi()
+modo_simulacion = False
+
+if target_port:
+    print(f"[CONEXIÓN DETECTADA] Conectando a Javi en {target_port}...")
+    try:
+        ser = serial.Serial(target_port, BAUD_RATE, timeout=1)
+        time.sleep(2) # Esperar a que se estabilice la conexión
+        print(">> ENLACE ESTABLECIDO <<")
+    except Exception as e:
+        print(f"[ERROR] No se pudo abrir el puerto: {e}")
+        modo_simulacion = True
+else:
+    print("[AVISO] No se detectó hardware. Iniciando MODO SIMULACIÓN.")
+    modo_simulacion = True
+
+print("-" * 60)
+print(f"{'INPUT (VIB)':<15} | {'PENSAMIENTO (Ŭ-1)':<25} | {'ENERGÍA'}")
+print("-" * 60)
 
 try:
-    # Simulación si no hay placa conectada (Para demos)
-    # ser = serial.Serial(SERIAL_PORT, BAUD_RATE) 
-    print("Link established. Receiving Telemetry...")
-    print("-" * 50)
-    print(f"{'INPUT':<10} | {'THOUGHT (Ŭ)':<20} | {'ENERGY':<10}")
-    print("-" * 50)
-
     while True:
-        # En modo real descomenta la linea de abajo:
-        # line = ser.readline().decode('utf-8').strip()
+        if not modo_simulacion:
+            # LECTURA REAL (Si el hardware envía datos como "0.123,872mW")
+            if ser.in_waiting > 0:
+                line = ser.readline().decode('utf-8', errors='ignore').strip()
+                # Aquí asumiríamos que el Arduino manda algo simple, si no, usamos random
+                try:
+                    vibration = float(line.split(',')[0]) # Ejemplo de parseo
+                except:
+                    vibration = random.random()
+        else:
+            # SIMULACIÓN (Tu algoritmo original)
+            vibration = random.random()
+
+        # Tu lógica de "Cerebro Riemann"
+        # Usamos 0.5 como base (Línea Crítica) + perturbación
+        thought = math.tanh(0.5 + vibration * 0.14) 
+        energy = "872mW" # Esto vendría del sensor de corriente en el futuro
+
+        # Visualización Barra
+        bar_len = int((thought) * 20) 
+        # Aseguramos que no se salga de rango visual
+        bar_len = max(0, min(20, bar_len))
         
-        # Simulación de datos para demostración:
-        import random, math
-        vibration = random.random()
-        thought = math.tanh(0.5 + vibration * 0.014)
-        energy = "872mW"
+        visual_bar = "▓" * bar_len + "░" * (20 - bar_len)
         
-        # Visualización tipo Hacker
-        bar_len = int(thought * 20)
-        visual_bar = "█" * bar_len + "░" * (20 - bar_len)
-        
-        print(f"{vibration:.4f}     | {visual_bar} {thought:.5f} | {energy}")
+        # Formato de salida limpio
+        print(f"{vibration:.4f}          | {visual_bar} {thought:.4f} | {energy}")
         time.sleep(0.1)
 
 except KeyboardInterrupt:
-    print("\nDisconnected.")
+    if not modo_simulacion:
+        ser.close()
+    print("\n[SISTEMA] Desconectado. Monitor HETC cerrado.")
     sys.exit()
-except Exception as e:
-    print(f"Error: {e}")
-    print("Tip: Check your USB connection.")
